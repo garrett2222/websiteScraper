@@ -9,14 +9,16 @@ import webbrowser
 
 class Site:
     #INITIALIZE SELF
-    def __init__(self, name, url, viewing_url, tag, number_tag, ticker):
+    def __init__(self, name, url, viewing_url, tag, number_tag, ticker, decode):
         self.name=name
         self.url=url
         self.viewing_url=viewing_url
         self.tag=tag
         self.number_tag=number_tag
         self.ticker=ticker
+        self.decode=decode
         self.fails = 0
+
 
     # FINDING TOOL
     def findnth(self, haystack, needle, n):
@@ -113,9 +115,19 @@ class Site:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
         self.oldArray=[]
         self.response=requests.get(self.url, headers=self.header)
-        self.soup=BeautifulSoup(self.response.content, "lxml")
 
-        self.oldArray=[self.soup.find_all(self.tag)[self.number_tag].text]
+        if self.decode==True:
+            self.soupdecoded=BeautifulSoup(self.response.content.decode("utf-8", "ignore"))
+            if self.soupdecoded.body:
+                script_html = '<script> alert(/hey/)</script>'
+                snippet = BeautifulSoup(script_html).script.extract()
+                self.soupdecoded.body.insert(0, snippet)
+            self.oldArray = [self.soupdecoded.find_all(self.tag)[self.number_tag].text]
+        else:
+            self.soup = BeautifulSoup(self.response.content, "lxml")
+            self.oldArray = [self.soup.find_all(self.tag)[self.number_tag].text]
+
+
         self.loops=1
 
         print "\n \n \n \n "
@@ -125,7 +137,7 @@ class Site:
             self.response = requests.get(self.url, headers=self.header)
             if str(self.response)!="<Response [200]>":
                 #print "bad response",self.name
-                time.sleep(.20)
+                time.sleep(.80)
                 self.fails+=1
                 #print self.fails
                 if self.fails>1:
@@ -139,12 +151,23 @@ class Site:
                     #print self.fails
                     self.fails=0
                 continue
-            #print self.name
-            self.soup = BeautifulSoup(self.response.content, "lxml")
-            try:
-                self.newHeadline = self.soup.find_all(self.tag)[self.number_tag].text
-            except IndexError:
-                self.newHeadline=self.oldArray[5]
+
+            if self.decode == True:
+                self.soupdecoded = BeautifulSoup(self.response.content.decode("utf-8", "ignore"))
+                if self.soupdecoded.body:
+                    script_html = '<script> alert(/hey/)</script>'
+                    snippet = BeautifulSoup(script_html).script.extract()
+                    self.soupdecoded.body.insert(0, snippet)
+                try:
+                    self.newHeadline = self.soupdecoded.find_all(self.tag)[self.number_tag].text
+                except IndexError:
+                    self.newHeadline = self.oldArray[5]
+            else:
+                self.soup = BeautifulSoup(self.response.content, "lxml")
+                try:
+                    self.newHeadline = self.soup.find_all(self.tag)[self.number_tag].text
+                except IndexError:
+                    self.newHeadline = self.oldArray[5]
 
             if self.name=="NYPost":
                 if Site.keywordCheck(self)==True:
@@ -155,19 +178,20 @@ class Site:
             self.oldArray.append(self.newHeadline)
             if self.loops>6:
                 del self.oldArray[0]
+            time.sleep(.2)
 
             #print self.newHeadline
 
-citron=Site("Citron","http://citronresearch.com/feed","http://citronresearch.com","title",1,True)
-muddywaters=Site("Muddywaters","http://www.muddywatersresearch.com/research/","http://www.muddywatersresearch.com/research/","a",10,False)
-prescience=Site("Prescience","http://www.presciencepoint.com/feed/", "http://www.presciencepoint.com/research/","title",2,True)
-gotham=Site("Gotham","http://gothamcityresearch.com/research/feed","http://gothamcityresearch.com/research",'title',2,False)
-bronte=Site("Bronte","http://brontecapital.blogspot.com/","http://brontecapital.blogspot.com/",'a',1,False)
-spruce=Site("Sprucepoint","http://www.sprucepointcap.com/feed/","http://www.sprucepointcap.com/research/",'title', 1, True)
-sirf=Site("Sirf","http://sirf-online.org/feed","http://sirf-online.org",'title',1,False)
-nypost=Site("NYPost","http://nypost.com/feed/","nypost.com","title",2,False)
+citron=Site("Citron","http://citronresearch.com/feed","http://citronresearch.com/","title",1,True,True)
+muddywaters=Site("Muddywaters","http://www.muddywatersresearch.com/research/","http://www.muddywatersresearch.com/research/","a",10,False,False)
+prescience=Site("Prescience","http://www.presciencepoint.com/feed/", "http://www.presciencepoint.com/research/","title",2,True,False)
+gotham=Site("Gotham","http://gothamcityresearch.com/research/feed","http://gothamcityresearch.com/research",'title',2,False,False)
+bronte=Site("Bronte","http://brontecapital.blogspot.com/","http://brontecapital.blogspot.com/",'a',1,False,False)
+spruce=Site("Sprucepoint","http://www.sprucepointcap.com/feed/","http://www.sprucepointcap.com/research/",'title', 1, True,False)
+sirf=Site("Sirf","http://sirf-online.org/feed","http://sirf-online.org",'title',1,False,False)
+nypost=Site("NYPost","http://nypost.com/feed/","nypost.com","title",2,False,False)
 
-All=[citron,muddywaters,prescience,gotham,bronte,spruce, nypost]
+All=[muddywaters, citron, prescience, spruce, nypost]
 
 threads=[]
 for item in All:
